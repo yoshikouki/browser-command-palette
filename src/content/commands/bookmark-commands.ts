@@ -16,7 +16,7 @@ commandRegistry.registerCategory({
 // Register dynamic bookmark items generator
 commandRegistry.registerDynamicGenerator(
   "bookmarks",
-  async (): Promise<DynamicItem[]> => {
+  (): Promise<DynamicItem[]> => {
     return new Promise((resolve) => {
       chrome.runtime.sendMessage({ type: "GET_BOOKMARKS" }, (response) => {
         if (!response?.bookmarks) {

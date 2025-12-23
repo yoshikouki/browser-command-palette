@@ -16,7 +16,7 @@ commandRegistry.registerCategory({
 // Register dynamic history items generator
 commandRegistry.registerDynamicGenerator(
   "history",
-  async (): Promise<DynamicItem[]> => {
+  (): Promise<DynamicItem[]> => {
     return new Promise((resolve) => {
       chrome.runtime.sendMessage(
         { type: "GET_HISTORY", query: "" },

@@ -85,11 +85,9 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
 
   // Handle back navigation
   const handleBack = () => {
-    if (viewMode === "category") {
-      setViewMode("initial");
-      setCurrentCategory(null);
-      setCategoryItems([]);
-    }
+    setViewMode("initial");
+    setCurrentCategory(null);
+    setCategoryItems([]);
   };
 
   // Handle escape key
@@ -98,7 +96,10 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
       if (e.key === "Escape") {
         if (viewMode === "category") {
           e.preventDefault();
-          handleBack();
+          // Inline back navigation to avoid dependency issues
+          setViewMode("initial");
+          setCurrentCategory(null);
+          setCategoryItems([]);
         } else {
           onClose();
         }
@@ -108,7 +109,10 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
         viewMode === "category"
       ) {
         e.preventDefault();
-        handleBack();
+        // Inline back navigation to avoid dependency issues
+        setViewMode("initial");
+        setCurrentCategory(null);
+        setCategoryItems([]);
       }
     };
 

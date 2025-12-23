@@ -14,47 +14,44 @@ commandRegistry.registerCategory({
 });
 
 // Register dynamic tab items generator
-commandRegistry.registerDynamicGenerator(
-  "tabs",
-  async (): Promise<DynamicItem[]> => {
-    return new Promise((resolve) => {
-      chrome.runtime.sendMessage({ type: "GET_TABS" }, (response) => {
-        if (!response?.tabs) {
-          resolve([]);
-          return;
-        }
+commandRegistry.registerDynamicGenerator("tabs", (): Promise<DynamicItem[]> => {
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage({ type: "GET_TABS" }, (response) => {
+      if (!response?.tabs) {
+        resolve([]);
+        return;
+      }
 
-        const items: DynamicItem[] = response.tabs.map(
-          (tab: chrome.tabs.Tab): DynamicItem => ({
-            id: `tab-${tab.id}`,
-            type: "dynamic",
-            category: "tabs",
-            title: tab.title || "Untitled",
-            subtitle: tab.url,
-            icon: Layers,
-            keywords: ["tab", tab.title || "", tab.url || ""],
-            action: () => {
-              chrome.runtime.sendMessage({
-                type: "SWITCH_TAB",
-                tabId: tab.id,
-                windowId: tab.windowId,
-              });
-            },
-            metadata: {
+      const items: DynamicItem[] = response.tabs.map(
+        (tab: chrome.tabs.Tab): DynamicItem => ({
+          id: `tab-${tab.id}`,
+          type: "dynamic",
+          category: "tabs",
+          title: tab.title || "Untitled",
+          subtitle: tab.url,
+          icon: Layers,
+          keywords: ["tab", tab.title || "", tab.url || ""],
+          action: () => {
+            chrome.runtime.sendMessage({
+              type: "SWITCH_TAB",
               tabId: tab.id,
               windowId: tab.windowId,
-              pinned: tab.pinned,
-              active: tab.active,
-              favIconUrl: tab.favIconUrl,
-            } as TabItemMetadata,
-          })
-        );
+            });
+          },
+          metadata: {
+            tabId: tab.id,
+            windowId: tab.windowId,
+            pinned: tab.pinned,
+            active: tab.active,
+            favIconUrl: tab.favIconUrl,
+          } as TabItemMetadata,
+        })
+      );
 
-        resolve(items);
-      });
+      resolve(items);
     });
-  }
-);
+  });
+});
 
 // Helper functions for tab actions
 export function createCloseTabAction(tabId: number): () => void {

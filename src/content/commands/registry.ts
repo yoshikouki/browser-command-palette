@@ -7,9 +7,9 @@ import type {
 } from "./types";
 
 class CommandRegistry {
-  private staticCommands: Map<string, StaticCommand> = new Map();
-  private categoryCommands: Map<string, CategoryCommand> = new Map();
-  private dynamicItemGenerators: Map<
+  private readonly staticCommands: Map<string, StaticCommand> = new Map();
+  private readonly categoryCommands: Map<string, CategoryCommand> = new Map();
+  private readonly dynamicItemGenerators: Map<
     CommandCategory,
     () => Promise<DynamicItem[]>
   > = new Map();
@@ -48,10 +48,10 @@ class CommandRegistry {
   }
 
   // Get dynamic items for a specific category
-  async getDynamicItems(category: CommandCategory): Promise<DynamicItem[]> {
+  getDynamicItems(category: CommandCategory): Promise<DynamicItem[]> {
     const generator = this.dynamicItemGenerators.get(category);
     if (!generator) {
-      return [];
+      return Promise.resolve([]);
     }
     return generator();
   }
