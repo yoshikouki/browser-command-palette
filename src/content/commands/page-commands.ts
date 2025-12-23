@@ -27,18 +27,6 @@ export const pageCommands: Command[] = [
     },
   },
   {
-    id: "page:hard-reload",
-    title: "Hard Reload",
-    subtitle: "Reload ignoring cache",
-    icon: RotateCcw,
-    keywords: ["refresh", "cache", "force"],
-    shortcut: "⌘⇧R",
-    category: "page",
-    action: () => {
-      window.location.href = window.location.href;
-    },
-  },
-  {
     id: "navigation:back",
     title: "Go Back",
     subtitle: "Navigate to previous page",

@@ -9,7 +9,7 @@ import type { Command, CommandCategory } from "./types";
  * - Optimized for search across hundreds of commands
  */
 class CommandRegistry {
-  private commands: Map<string, Command> = new Map();
+  private readonly commands: Map<string, Command> = new Map();
 
   /**
    * Register a single command

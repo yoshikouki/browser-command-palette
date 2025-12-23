@@ -54,25 +54,20 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
 
   const isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches;
 
-  const handleBackdropClick = (
-    e: React.MouseEvent<HTMLDivElement> | React.KeyboardEvent<HTMLDivElement>
-  ) => {
+  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) {
       onClose();
     }
   };
 
   return (
+    // biome-ignore lint/a11y/useKeyWithClickEvents: Backdrop click-to-close is intentional UX, keyboard handled via Escape
+    // biome-ignore lint/a11y/noNoninteractiveElementInteractions: Dialog backdrop pattern
     <div
+      aria-modal="true"
       className="command-palette-backdrop"
       onClick={handleBackdropClick}
-      onKeyDown={(e) => {
-        if (e.key === "Escape") {
-          onClose();
-        }
-      }}
-      role="button"
-      tabIndex={0}
+      role="dialog"
     >
       <div className={`command-palette-container ${isDarkMode ? "dark" : ""}`}>
         <Command shouldFilter>
