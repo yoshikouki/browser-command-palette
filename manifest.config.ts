@@ -14,7 +14,7 @@ export default defineManifest({
     },
     default_popup: "src/popup/index.html",
   },
-  permissions: ["activeTab", "tabs", "bookmarks", "history", "storage"],
+  permissions: ["activeTab", "storage"],
   commands: {
     "toggle-command-palette": {
       suggested_key: {

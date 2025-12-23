@@ -1,81 +1,76 @@
-import type {
-  CategoryCommand,
-  Command,
-  CommandCategory,
-  DynamicItem,
-  StaticCommand,
-} from "./types";
+import type { Command, CommandCategory } from "./types";
 
+/**
+ * Command Registry
+ *
+ * Simple, scalable command management.
+ * - All commands are registered at initialization
+ * - Flat list with category metadata for filtering
+ * - Optimized for search across hundreds of commands
+ */
 class CommandRegistry {
-  private readonly staticCommands: Map<string, StaticCommand> = new Map();
-  private readonly categoryCommands: Map<string, CategoryCommand> = new Map();
-  private readonly dynamicItemGenerators: Map<
-    CommandCategory,
-    () => Promise<DynamicItem[]>
-  > = new Map();
+  private commands: Map<string, Command> = new Map();
 
-  // Register a static command
-  registerStatic(command: StaticCommand): void {
-    this.staticCommands.set(command.id, command);
-  }
-
-  // Register a category command
-  registerCategory(command: CategoryCommand): void {
-    this.categoryCommands.set(command.id, command);
-  }
-
-  // Register a generator for dynamic items
-  registerDynamicGenerator(
-    category: CommandCategory,
-    generator: () => Promise<DynamicItem[]>
-  ): void {
-    this.dynamicItemGenerators.set(category, generator);
-  }
-
-  // Get all static commands
-  getStaticCommands(): StaticCommand[] {
-    return Array.from(this.staticCommands.values());
-  }
-
-  // Get all category commands
-  getCategoryCommands(): CategoryCommand[] {
-    return Array.from(this.categoryCommands.values());
-  }
-
-  // Get commands for initial view (categories + static commands)
-  getInitialCommands(): Command[] {
-    return [...this.getCategoryCommands(), ...this.getStaticCommands()];
-  }
-
-  // Get dynamic items for a specific category
-  getDynamicItems(category: CommandCategory): Promise<DynamicItem[]> {
-    const generator = this.dynamicItemGenerators.get(category);
-    if (!generator) {
-      return Promise.resolve([]);
+  /**
+   * Register a single command
+   */
+  register(command: Command): void {
+    if (this.commands.has(command.id)) {
+      console.warn(`Command "${command.id}" already registered, skipping.`);
+      return;
     }
-    return generator();
+    this.commands.set(command.id, command);
   }
 
-  // Get all searchable items (for search mode)
-  async getAllSearchableItems(): Promise<Command[]> {
-    const staticCommands = this.getStaticCommands();
-    const categoryCommands = this.getCategoryCommands();
-
-    const dynamicItemPromises = Array.from(
-      this.dynamicItemGenerators.entries()
-    ).map(([_, generator]) => generator());
-
-    const dynamicItemsArrays = await Promise.all(dynamicItemPromises);
-    const allDynamicItems = dynamicItemsArrays.flat();
-
-    return [...categoryCommands, ...staticCommands, ...allDynamicItems];
+  /**
+   * Register multiple commands at once
+   */
+  registerAll(commands: Command[]): void {
+    for (const command of commands) {
+      this.register(command);
+    }
   }
 
-  // Clear all commands (useful for testing or reset)
+  /**
+   * Get all commands
+   */
+  getAll(): Command[] {
+    return Array.from(this.commands.values());
+  }
+
+  /**
+   * Get commands filtered by category
+   */
+  getByCategory(category: CommandCategory): Command[] {
+    return this.getAll().filter((cmd) => cmd.category === category);
+  }
+
+  /**
+   * Get a specific command by ID
+   */
+  get(id: string): Command | undefined {
+    return this.commands.get(id);
+  }
+
+  /**
+   * Remove a command by ID
+   */
+  unregister(id: string): boolean {
+    return this.commands.delete(id);
+  }
+
+  /**
+   * Clear all commands
+   */
   clear(): void {
-    this.staticCommands.clear();
-    this.categoryCommands.clear();
-    this.dynamicItemGenerators.clear();
+    this.commands.clear();
+  }
+
+  /**
+   * Get total command count
+   */
+  get size(): number {
+    return this.commands.size;
   }
 }
 

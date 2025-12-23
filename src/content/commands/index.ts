@@ -1,7 +1,9 @@
-// Import all command modules to register them
-import "./tab-commands";
-import "./bookmark-commands";
-import "./history-commands";
+import { clipboardCommands } from "./clipboard-commands";
+import { pageCommands } from "./page-commands";
+import { commandRegistry } from "./registry";
+
+// Register all built-in commands
+commandRegistry.registerAll([...pageCommands, ...clipboardCommands]);
 
 // Re-export registry and types
 export { commandRegistry } from "./registry";

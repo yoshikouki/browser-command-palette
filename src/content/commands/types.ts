@@ -1,60 +1,45 @@
 import type { LucideIcon } from "lucide-react";
 
-export type CommandCategory = "tabs" | "bookmarks" | "history" | "navigation";
+/**
+ * Command categories for filtering and organization
+ */
+export type CommandCategory = "navigation" | "clipboard" | "page" | "custom";
 
-export interface BaseCommand {
+/**
+ * Base command definition
+ * All commands are static - no dynamic generation from external APIs
+ */
+export interface Command {
+  /** Unique identifier */
+  id: string;
+  /** Display title */
+  title: string;
+  /** Optional subtitle/description */
+  subtitle?: string;
+  /** Lucide icon component */
+  icon?: LucideIcon;
+  /** Search keywords (in addition to title) */
+  keywords?: string[];
+  /** Keyboard shortcut hint (display only) */
+  shortcut?: string;
+  /** Category for filtering */
+  category: CommandCategory;
+  /** Command action - runs in content script context */
+  action: () => void | Promise<void>;
+}
+
+/**
+ * Command definition without id (for factory functions)
+ */
+export type CommandDefinition = Omit<Command, "id">;
+
+/**
+ * Stored custom command (persisted in chrome.storage)
+ */
+export interface StoredCustomCommand {
   id: string;
   title: string;
-  subtitle?: string;
-  icon?: LucideIcon;
+  url: string;
   keywords?: string[];
-  shortcut?: string;
+  createdAt: number;
 }
-
-// Static command: always visible, fixed action
-export interface StaticCommand extends BaseCommand {
-  type: "static";
-  action: () => void | Promise<void>;
-}
-
-// Category command: navigates to a list of dynamic items
-export interface CategoryCommand extends BaseCommand {
-  type: "category";
-  category: CommandCategory;
-}
-
-// Tab-specific metadata
-export interface TabItemMetadata {
-  tabId: number;
-  windowId: number;
-  pinned: boolean;
-  active: boolean;
-  favIconUrl?: string;
-}
-
-// Bookmark-specific metadata
-export interface BookmarkItemMetadata {
-  bookmarkId: string;
-}
-
-// History-specific metadata
-export interface HistoryItemMetadata {
-  lastVisitTime?: number;
-  visitCount?: number;
-}
-
-// Union of all metadata types
-export type ItemMetadata =
-  | TabItemMetadata
-  | BookmarkItemMetadata
-  | HistoryItemMetadata;
-
-// Dynamic item: generated from data (tabs, bookmarks, etc.)
-export interface DynamicItem extends BaseCommand {
-  type: "dynamic";
-  category: CommandCategory;
-  action: () => void | Promise<void>;
-  metadata?: ItemMetadata;
-}
-
-export type Command = StaticCommand | CategoryCommand | DynamicItem;
