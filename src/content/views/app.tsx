@@ -13,8 +13,14 @@ function App() {
           <h1>HELLO CRXJS</h1>
         </div>
       )}
-      <button className="toggle-button" onClick={toggle}>
-        <img alt="CRXJS logo" className="button-icon" src={Logo} />
+      <button className="toggle-button" onClick={toggle} type="button">
+        <img
+          alt="CRXJS logo"
+          className="button-icon"
+          height={32}
+          src={Logo}
+          width={32}
+        />
       </button>
     </div>
   );

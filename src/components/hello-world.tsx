@@ -13,7 +13,7 @@ export default function HelloWorld(props: { msg: string }) {
         </button>
         <p>
           Edit
-          <code>src/components/HelloWorld.tsx</code> to test HMR
+          <code>src/components/hello-world.tsx</code> to test HMR
         </p>
       </div>
 
