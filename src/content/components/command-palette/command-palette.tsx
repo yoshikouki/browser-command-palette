@@ -1,78 +1,114 @@
 import { Command } from "cmdk";
-import { Bookmark, Clock, Layers, Pin, PinOff, X } from "lucide-react";
+import { ChevronRight, Pin, PinOff, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { BookmarkInfo, HistoryItem, TabInfo } from "./types";
+import {
+  type CommandCategory,
+  type Command as CommandType,
+  commandRegistry,
+  type DynamicItem,
+  type TabItemMetadata,
+} from "../../commands";
+import {
+  createCloseTabAction,
+  createPinTabAction,
+} from "../../commands/tab-commands";
 
 interface CommandPaletteProps {
   open: boolean;
   onClose: () => void;
 }
 
-export function CommandPalette({ open, onClose }: CommandPaletteProps) {
-  const [tabs, setTabs] = useState<TabInfo[]>([]);
-  const [bookmarks, setBookmarks] = useState<BookmarkInfo[]>([]);
-  const [history, setHistory] = useState<HistoryItem[]>([]);
-  const [search, setSearch] = useState("");
+type ViewMode = "initial" | "category" | "search";
 
+export function CommandPalette({ open, onClose }: CommandPaletteProps) {
+  const [search, setSearch] = useState("");
+  const [viewMode, setViewMode] = useState<ViewMode>("initial");
+  const [currentCategory, setCurrentCategory] =
+    useState<CommandCategory | null>(null);
+  const [initialCommands, setInitialCommands] = useState<CommandType[]>([]);
+  const [categoryItems, setCategoryItems] = useState<DynamicItem[]>([]);
+  const [searchResults, setSearchResults] = useState<CommandType[]>([]);
+
+  // Reset state when palette closes
   useEffect(() => {
     if (!open) {
       setSearch("");
-      return;
+      setViewMode("initial");
+      setCurrentCategory(null);
+      setCategoryItems([]);
+      setSearchResults([]);
     }
-
-    // Fetch tabs
-    chrome.runtime.sendMessage({ type: "GET_TABS" }, (response) => {
-      if (response?.tabs) {
-        setTabs(
-          response.tabs.map((tab: chrome.tabs.Tab) => ({
-            id: tab.id,
-            windowId: tab.windowId,
-            title: tab.title || "",
-            url: tab.url || "",
-            favIconUrl: tab.favIconUrl,
-            pinned: tab.pinned,
-            active: tab.active,
-          }))
-        );
-      }
-    });
-
-    // Fetch bookmarks
-    chrome.runtime.sendMessage({ type: "GET_BOOKMARKS" }, (response) => {
-      if (response?.bookmarks) {
-        setBookmarks(
-          response.bookmarks.map((b: chrome.bookmarks.BookmarkTreeNode) => ({
-            id: b.id,
-            title: b.title,
-            url: b.url || "",
-          }))
-        );
-      }
-    });
-
-    // Fetch history
-    chrome.runtime.sendMessage(
-      { type: "GET_HISTORY", query: "" },
-      (response) => {
-        if (response?.history) {
-          setHistory(
-            response.history.map((h: chrome.history.HistoryItem) => ({
-              id: h.id,
-              title: h.title,
-              url: h.url || "",
-              lastVisitTime: h.lastVisitTime,
-              visitCount: h.visitCount,
-            }))
-          );
-        }
-      }
-    );
   }, [open]);
 
+  // Load initial commands when palette opens
+  useEffect(() => {
+    if (open && viewMode === "initial") {
+      setInitialCommands(commandRegistry.getInitialCommands());
+    }
+  }, [open, viewMode]);
+
+  // Load category items when a category is selected
+  useEffect(() => {
+    if (viewMode === "category" && currentCategory) {
+      commandRegistry.getDynamicItems(currentCategory).then(setCategoryItems);
+    }
+  }, [viewMode, currentCategory]);
+
+  // Search mode: load all searchable items
+  useEffect(() => {
+    if (viewMode === "search" && search.length > 0) {
+      commandRegistry.getAllSearchableItems().then(setSearchResults);
+    }
+  }, [viewMode, search]);
+
+  // Handle search input change
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
+    if (value.length > 0 && viewMode !== "search") {
+      setViewMode("search");
+    } else if (value.length === 0 && viewMode === "search") {
+      setViewMode(currentCategory ? "category" : "initial");
+    }
+  };
+
+  // Handle command selection
+  const handleSelect = (command: CommandType) => {
+    if (command.type === "category") {
+      setCurrentCategory(command.category);
+      setViewMode("category");
+      setSearch("");
+    } else if (command.type === "static" || command.type === "dynamic") {
+      command.action();
+      onClose();
+    }
+  };
+
+  // Handle back navigation
+  const handleBack = () => {
+    if (viewMode === "category") {
+      setViewMode("initial");
+      setCurrentCategory(null);
+      setCategoryItems([]);
+    }
+  };
+
+  // Handle escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        onClose();
+        if (viewMode === "category") {
+          e.preventDefault();
+          handleBack();
+        } else {
+          onClose();
+        }
+      } else if (
+        e.key === "Backspace" &&
+        search === "" &&
+        viewMode === "category"
+      ) {
+        e.preventDefault();
+        handleBack();
       }
     };
 
@@ -83,44 +119,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [open, onClose]);
-
-  const handleSwitchTab = (tab: TabInfo) => {
-    chrome.runtime.sendMessage({
-      type: "SWITCH_TAB",
-      tabId: tab.id,
-      windowId: tab.windowId,
-    });
-    onClose();
-  };
-
-  const handleCloseTab = (tab: TabInfo, e: React.MouseEvent) => {
-    e.stopPropagation();
-    chrome.runtime.sendMessage({ type: "CLOSE_TAB", tabId: tab.id });
-    setTabs((prev) => prev.filter((t) => t.id !== tab.id));
-  };
-
-  const handlePinTab = (tab: TabInfo, e: React.MouseEvent) => {
-    e.stopPropagation();
-    chrome.runtime.sendMessage({
-      type: "PIN_TAB",
-      tabId: tab.id,
-      pinned: !tab.pinned,
-    });
-    setTabs((prev) =>
-      prev.map((t) => (t.id === tab.id ? { ...t, pinned: !t.pinned } : t))
-    );
-  };
-
-  const handleOpenBookmark = (bookmark: BookmarkInfo) => {
-    window.open(bookmark.url, "_blank");
-    onClose();
-  };
-
-  const handleOpenHistory = (item: HistoryItem) => {
-    window.open(item.url, "_blank");
-    onClose();
-  };
+  }, [open, viewMode, search, onClose]);
 
   if (!open) {
     return null;
@@ -136,12 +135,33 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     }
   };
 
+  // Determine which items to display
+  const getDisplayItems = (): CommandType[] => {
+    if (viewMode === "search") {
+      return searchResults;
+    }
+    if (viewMode === "category") {
+      return categoryItems;
+    }
+    return initialCommands;
+  };
+
+  const displayItems = getDisplayItems();
+
+  // Get placeholder text
+  const getPlaceholder = (): string => {
+    if (viewMode === "category" && currentCategory) {
+      return `Search ${currentCategory}...`;
+    }
+    return "Type a command or search...";
+  };
+
   return (
     <div
       className="command-palette-backdrop"
       onClick={handleBackdropClick}
       onKeyDown={(e) => {
-        if (e.key === "Escape") {
+        if (e.key === "Escape" && viewMode === "initial") {
           onClose();
         }
       }}
@@ -149,100 +169,97 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
       tabIndex={0}
     >
       <div className={`command-palette-container ${isDarkMode ? "dark" : ""}`}>
-        <Command shouldFilter>
-          <Command.Input
-            autoFocus
-            onValueChange={setSearch}
-            placeholder="Type a command or search..."
-            value={search}
-          />
+        <Command shouldFilter={viewMode === "search"}>
+          <div className="flex items-center border-border border-b">
+            {viewMode === "category" && (
+              <button
+                className="px-3 py-4 text-muted-foreground hover:text-foreground"
+                onClick={handleBack}
+                type="button"
+              >
+                ←
+              </button>
+            )}
+            <Command.Input
+              autoFocus
+              className="flex-1"
+              onValueChange={handleSearchChange}
+              placeholder={getPlaceholder()}
+              value={search}
+            />
+          </div>
           <Command.List>
             <Command.Empty>No results found.</Command.Empty>
 
-            {tabs.length > 0 && (
-              <Command.Group heading="Tabs">
-                {tabs.map((tab) => (
-                  <Command.Item
-                    key={`tab-${tab.id}`}
-                    onSelect={() => handleSwitchTab(tab)}
-                    value={`tab ${tab.title} ${tab.url}`}
-                  >
-                    <Layers className="h-4 w-4" />
-                    <div className="flex flex-1 flex-col overflow-hidden">
-                      <span className="truncate font-medium">{tab.title}</span>
-                      <span className="truncate text-muted-foreground text-xs">
-                        {tab.url}
-                      </span>
-                    </div>
-                    <div className="flex gap-1">
-                      <button
-                        className="rounded p-1 hover:bg-secondary"
-                        onClick={(e) => handlePinTab(tab, e)}
-                        title={tab.pinned ? "Unpin tab" : "Pin tab"}
-                        type="button"
-                      >
-                        {tab.pinned ? (
-                          <PinOff className="h-3 w-3" />
-                        ) : (
-                          <Pin className="h-3 w-3" />
-                        )}
-                      </button>
-                      <button
-                        className="rounded p-1 hover:bg-destructive hover:text-destructive-foreground"
-                        onClick={(e) => handleCloseTab(tab, e)}
-                        title="Close tab"
-                        type="button"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  </Command.Item>
-                ))}
-              </Command.Group>
-            )}
-
-            {bookmarks.length > 0 && (
-              <Command.Group heading="Bookmarks">
-                {bookmarks.slice(0, 20).map((bookmark) => (
-                  <Command.Item
-                    key={`bookmark-${bookmark.id}`}
-                    onSelect={() => handleOpenBookmark(bookmark)}
-                    value={`bookmark ${bookmark.title} ${bookmark.url}`}
-                  >
-                    <Bookmark className="h-4 w-4" />
-                    <div className="flex flex-1 flex-col overflow-hidden">
-                      <span className="truncate">{bookmark.title}</span>
-                      <span className="truncate text-muted-foreground text-xs">
-                        {bookmark.url}
-                      </span>
-                    </div>
-                  </Command.Item>
-                ))}
-              </Command.Group>
-            )}
-
-            {history.length > 0 && (
-              <Command.Group heading="History">
-                {history.slice(0, 20).map((item) => (
-                  <Command.Item
-                    key={`history-${item.id}`}
-                    onSelect={() => handleOpenHistory(item)}
-                    value={`history ${item.title} ${item.url}`}
-                  >
-                    <Clock className="h-4 w-4" />
-                    <div className="flex flex-1 flex-col overflow-hidden">
-                      <span className="truncate">{item.title || item.url}</span>
-                      <span className="truncate text-muted-foreground text-xs">
-                        {item.url}
-                      </span>
-                    </div>
-                  </Command.Item>
-                ))}
-              </Command.Group>
-            )}
+            {displayItems.map((item) => (
+              <Command.Item
+                key={item.id}
+                onSelect={() => handleSelect(item)}
+                value={`${item.title} ${item.subtitle || ""} ${item.keywords?.join(" ") || ""}`}
+              >
+                {item.icon && <item.icon className="h-4 w-4 shrink-0" />}
+                <div className="flex flex-1 flex-col overflow-hidden">
+                  <span className="truncate font-medium">{item.title}</span>
+                  {item.subtitle && (
+                    <span className="truncate text-muted-foreground text-xs">
+                      {item.subtitle}
+                    </span>
+                  )}
+                </div>
+                {item.type === "category" && (
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                )}
+                {item.type === "dynamic" && item.category === "tabs" && (
+                  <TabActions item={item} />
+                )}
+              </Command.Item>
+            ))}
           </Command.List>
         </Command>
       </div>
+    </div>
+  );
+}
+
+// Tab-specific action buttons
+function TabActions({ item }: { item: DynamicItem }) {
+  const metadata = item.metadata as TabItemMetadata | undefined;
+  if (!metadata) {
+    return null;
+  }
+
+  const handlePin = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    createPinTabAction(metadata.tabId, metadata.pinned)();
+  };
+
+  const handleClose = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    createCloseTabAction(metadata.tabId)();
+  };
+
+  return (
+    <div className="flex gap-1">
+      <button
+        className="rounded p-1 hover:bg-secondary"
+        onClick={handlePin}
+        title={metadata.pinned ? "Unpin tab" : "Pin tab"}
+        type="button"
+      >
+        {metadata.pinned ? (
+          <PinOff className="h-3 w-3" />
+        ) : (
+          <Pin className="h-3 w-3" />
+        )}
+      </button>
+      <button
+        className="rounded p-1 hover:bg-destructive hover:text-destructive-foreground"
+        onClick={handleClose}
+        title="Close tab"
+        type="button"
+      >
+        <X className="h-3 w-3" />
+      </button>
     </div>
   );
 }
