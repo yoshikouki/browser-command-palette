@@ -122,18 +122,31 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     onClose();
   };
 
-  if (!open) return null;
+  if (!open) {
+    return null;
+  }
 
   const isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches;
+
+  const handleBackdropClick = (
+    e: React.MouseEvent<HTMLDivElement> | React.KeyboardEvent<HTMLDivElement>
+  ) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
 
   return (
     <div
       className="command-palette-backdrop"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) {
+      onClick={handleBackdropClick}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
           onClose();
         }
       }}
+      role="button"
+      tabIndex={0}
     >
       <div className={`command-palette-container ${isDarkMode ? "dark" : ""}`}>
         <Command shouldFilter>
