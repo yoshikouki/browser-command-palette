@@ -1,3 +1,16 @@
+# Project Guidelines
+
+## Design Philosophy
+
+See [DESIGN_PHILOSOPHY.md](./DESIGN_PHILOSOPHY.md) for product design principles.
+
+**Key principles:**
+- Simplicity is the ultimate sophistication
+- Start with user experience, work backwards to technology
+- Say no to 1,000 things - focus on doing a few things exceptionally well
+
+---
+
 # Ultracite Code Standards
 
 This project uses **Ultracite**, a zero-config Biome preset that enforces strict code quality standards through automated formatting and linting.
