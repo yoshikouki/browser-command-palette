@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CommandPalette } from "../components/command-palette";
+import { CommandPalette } from "../../components/command-palette";
 
 export default function App() {
   const [isOpen, setIsOpen] = useState(false);
