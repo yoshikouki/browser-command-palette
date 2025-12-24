@@ -30,8 +30,12 @@ interface ExtensionFixtures {
 
 export const test = base.extend<ExtensionFixtures>({
   context: async ({}, use) => {
+    // Default to headless, use HEADED=true to show browser
+    const headless = process.env.HEADED !== "true";
+
     const context = await chromium.launchPersistentContext("", {
-      headless: false,
+      headless,
+      channel: "chromium",
       args: [
         `--disable-extensions-except=${EXTENSION_PATH}`,
         `--load-extension=${EXTENSION_PATH}`,
