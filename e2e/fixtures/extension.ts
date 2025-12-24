@@ -29,7 +29,7 @@ interface ExtensionFixtures {
 }
 
 export const test = base.extend<ExtensionFixtures>({
-  context: async ({}, use) => {
+  context: async (_fixtures, use) => {
     // Default to headless, use HEADED=true to show browser
     const headless = process.env.HEADED !== "true";
 
@@ -58,7 +58,7 @@ export const test = base.extend<ExtensionFixtures>({
     await use(extensionId);
   },
 
-  openCommandPalette: async ({ context, serviceWorker }, use) => {
+  openCommandPalette: async ({ serviceWorker }, use) => {
     // Get loader path at fixture setup time
     const loaderPath = getContentScriptLoaderPath();
     if (!loaderPath) {
