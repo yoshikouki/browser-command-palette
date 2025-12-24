@@ -1,3 +1,6 @@
+// Import content script path (crxjs resolves this to the correct path)
+import contentScript from "../content/content-script.ts?script";
+
 // Listen for keyboard shortcut command
 chrome.commands.onCommand.addListener(async (command, tab) => {
   if (command !== "toggle-command-palette") {
@@ -6,5 +9,9 @@ chrome.commands.onCommand.addListener(async (command, tab) => {
   if (!tab?.id) {
     return;
   }
-  await chrome.tabs.sendMessage(tab.id, { type: "TOGGLE_COMMAND_PALETTE" });
+  // Inject the React-based command palette
+  await chrome.scripting.executeScript({
+    target: { tabId: tab.id },
+    files: [contentScript],
+  });
 });

@@ -3,32 +3,25 @@ import { useEffect, useState } from "react";
 import { type Command as CommandType, commandRegistry } from "../../commands";
 
 interface CommandPaletteProps {
-  open: boolean;
-  onClose: () => void;
+  onClose?: () => void;
 }
 
-export function CommandPalette({ open, onClose }: CommandPaletteProps) {
+export function CommandPalette({ onClose: onCloseProp }: CommandPaletteProps) {
   const [search, setSearch] = useState("");
   const [commands, setCommands] = useState<CommandType[]>([]);
-
-  // Reset state when palette closes
-  useEffect(() => {
-    if (!open) {
-      setSearch("");
-    }
-  }, [open]);
+  const onClose = () => {
+    setSearch("");
+    onCloseProp?.();
+  };
 
   // Load commands when palette opens
   useEffect(() => {
-    if (open) {
-      setCommands(commandRegistry.getAll());
-    }
-  }, [open]);
+    setCommands(commandRegistry.getAll());
+  }, []);
 
   // Handle command selection
   const handleSelect = (command: CommandType) => {
     command.action();
-    onClose();
   };
 
   // Handle escape key
@@ -39,18 +32,13 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
       }
     };
 
-    if (open) {
-      document.addEventListener("keydown", handleKeyDown);
-    }
+    document.addEventListener("keydown", handleKeyDown);
 
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [open, onClose]);
-
-  if (!open) {
-    return null;
-  }
+    // biome-ignore lint/correctness/useExhaustiveDependencies: React Compiler
+  }, [onClose]);
 
   const isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches;
 

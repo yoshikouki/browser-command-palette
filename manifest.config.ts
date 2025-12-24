@@ -14,7 +14,7 @@ export default defineManifest({
     },
     default_popup: "src/popup/index.html",
   },
-  permissions: ["activeTab", "storage"],
+  permissions: ["activeTab", "storage", "scripting"],
   commands: {
     "toggle-command-palette": {
       suggested_key: {
@@ -28,13 +28,6 @@ export default defineManifest({
     service_worker: "src/background/service-worker.ts",
     type: "module",
   },
-  content_scripts: [
-    {
-      matches: ["<all_urls>"],
-      js: ["src/content/main.tsx"],
-      run_at: "document_idle",
-    },
-  ],
   side_panel: {
     default_path: "src/sidepanel/index.html",
   },
