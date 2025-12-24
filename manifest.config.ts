@@ -1,6 +1,15 @@
 import { defineManifest } from "@crxjs/vite-plugin";
 import pkg from "./package.json";
 
+// Production permissions (minimal)
+const prodPermissions = ["activeTab", "storage", "scripting"] as const;
+
+// Development permissions (includes tabs for E2E testing)
+const devPermissions = [...prodPermissions, "tabs"] as const;
+
+// Use E2E env var for test builds, or check if not explicitly production
+const isTestBuild = process.env.E2E === "true";
+
 export default defineManifest({
   manifest_version: 3,
   name: pkg.name,
@@ -14,8 +23,9 @@ export default defineManifest({
     },
     default_popup: "src/popup/index.html",
   },
-  permissions: ["activeTab", "storage", "scripting", "tabs"],
-  host_permissions: ["<all_urls>"],
+  permissions: isTestBuild ? [...devPermissions] : [...prodPermissions],
+  // host_permissions required for E2E tests (programmatic script injection)
+  ...(isTestBuild && { host_permissions: ["<all_urls>"] }),
   commands: {
     "toggle-command-palette": {
       suggested_key: {

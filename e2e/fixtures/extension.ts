@@ -18,7 +18,7 @@ function getContentScriptLoaderPath(): string {
   const loaderFile = files.find(
     (f) => f.includes("content-script") && f.includes("loader")
   );
-  return loaderFile ? `/assets/${loaderFile}` : "";
+  return loaderFile ? `assets/${loaderFile}` : "";
 }
 
 interface ExtensionFixtures {
@@ -58,38 +58,41 @@ export const test = base.extend<ExtensionFixtures>({
     await use(extensionId);
   },
 
-  openCommandPalette: async ({ serviceWorker }, use) => {
+  openCommandPalette: async ({ context, serviceWorker }, use) => {
+    // Get loader path at fixture setup time
     const loaderPath = getContentScriptLoaderPath();
+    if (!loaderPath) {
+      throw new Error("Content script loader not found in dist/assets");
+    }
 
     const openPalette = async (page: Page) => {
+      // Get tab ID by querying tabs and matching URL
       const pageUrl = page.url();
+      const tabId = await serviceWorker.evaluate(async (url: string) => {
+        const tabs = await chrome.tabs.query({ url });
+        return tabs[0]?.id ?? null;
+      }, pageUrl);
 
-      // Inject the content script loader via service worker
-      const result = await serviceWorker.evaluate(
-        async ({ url, scriptPath }: { url: string; scriptPath: string }) => {
-          try {
-            const tabs = await chrome.tabs.query({ url });
-            if (tabs.length === 0 || !tabs[0].id) {
-              return { success: false, error: "No tabs found" };
-            }
-            await chrome.scripting.executeScript({
-              target: { tabId: tabs[0].id },
-              files: [scriptPath],
-            });
-            return { success: true };
-          } catch (e) {
-            return {
-              success: false,
-              error: e instanceof Error ? e.message : String(e),
-            };
-          }
-        },
-        { url: pageUrl, scriptPath: loaderPath }
-      );
-
-      if (!result.success) {
-        throw new Error(`Failed to inject command palette: ${result.error}`);
+      if (!tabId) {
+        throw new Error(`Could not find tab ID for URL: ${pageUrl}`);
       }
+
+      // Inject the content script via the service worker
+      await serviceWorker.evaluate(
+        async ({
+          tabId,
+          loaderPath,
+        }: {
+          tabId: number;
+          loaderPath: string;
+        }) => {
+          await chrome.scripting.executeScript({
+            target: { tabId },
+            files: [loaderPath],
+          });
+        },
+        { tabId, loaderPath }
+      );
 
       // Wait for the command palette to be visible
       await page.locator(".command-palette-backdrop").waitFor({

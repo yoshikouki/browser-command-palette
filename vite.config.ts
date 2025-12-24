@@ -28,4 +28,7 @@ export default defineConfig({
       origin: [/chrome-extension:\/\//],
     },
   },
+  test: {
+    exclude: ["**/node_modules/**", "**/e2e/**"],
+  },
 });
