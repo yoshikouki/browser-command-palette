@@ -2,7 +2,6 @@ import type { BrowserContext, Locator, Page } from "@playwright/test";
 import { expect, test } from "./fixtures/extension";
 
 const HOST_SELECTOR = "#browser-command-palette-root";
-const TEST_URL = "https://example.com";
 const EXTENSION_ID_PATTERN = /^[a-z]{32}$/;
 const COMMAND_TITLES = {
   reload: "Reload Page",
@@ -10,6 +9,30 @@ const COMMAND_TITLES = {
   scrollBottom: "Scroll to Bottom",
   goBack: "Go Back",
 } as const;
+const TEST_PAGE_CONTENT = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Command Palette Test</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        margin: 0;
+        padding: 24px;
+      }
+      .spacer {
+        height: 120vh;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Command Palette Test Page</h1>
+    <p>Local HTML to avoid external network dependencies.</p>
+    <div class="spacer"></div>
+  </body>
+</html>`;
+const COMMAND_SHORTCUT =
+  process.platform === "darwin" ? "Meta+Shift+P" : "Control+Shift+P";
 
 interface PaletteLocators {
   host: Locator;
@@ -33,7 +56,7 @@ function getPaletteLocators(page: Page): PaletteLocators {
 
 async function createTestPage(context: BrowserContext): Promise<Page> {
   const page = await context.newPage();
-  await page.goto(TEST_URL, { waitUntil: "domcontentloaded" });
+  await page.setContent(TEST_PAGE_CONTENT, { waitUntil: "domcontentloaded" });
   return page;
 }
 
@@ -59,6 +82,20 @@ test.describe("Command Palette", () => {
 
     const { input } = await openPaletteOnPage(page, openCommandPalette);
     await expect(input).toBeFocused();
+  });
+
+  test("command palette opens via shortcut", async ({
+    context,
+    serviceWorker,
+  }) => {
+    const page = await createTestPage(context);
+    await page.bringToFront();
+    await page.keyboard.press(COMMAND_SHORTCUT);
+
+    const palette = getPaletteLocators(page);
+    await expect(palette.backdrop).toBeVisible();
+    await expect(palette.input).toBeVisible();
+    await expect(serviceWorker).toBeTruthy();
   });
 
   test("command palette displays commands", async ({

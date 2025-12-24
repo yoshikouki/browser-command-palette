@@ -11,14 +11,60 @@ import {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const EXTENSION_PATH = path.resolve(__dirname, "../../dist");
+const MANIFEST_PATH = path.join(EXTENSION_PATH, "manifest.json");
+
+interface ExtensionManifest {
+  background?: {
+    service_worker?: string;
+  };
+}
+
+function readManifest(): ExtensionManifest {
+  const manifestRaw = fs.readFileSync(MANIFEST_PATH, "utf-8");
+  return JSON.parse(manifestRaw) as ExtensionManifest;
+}
+
+function resolveDistPath(relativePath: string): string {
+  return path.resolve(EXTENSION_PATH, relativePath.replace(/^\//, ""));
+}
+
+function getServiceWorkerModulePath(manifest: ExtensionManifest): string {
+  const loaderPath = manifest.background?.service_worker;
+  if (!loaderPath) {
+    throw new Error("Service worker loader not found in manifest.json");
+  }
+
+  const loaderAbsPath = resolveDistPath(loaderPath);
+  const loaderSource = fs.readFileSync(loaderAbsPath, "utf-8");
+  const importMatch = loaderSource.match(/import\s+["'](.+?)["']/);
+  if (!importMatch?.[1]) {
+    throw new Error(
+      `Service worker module not found in ${path.basename(loaderPath)}`
+    );
+  }
+
+  return path.resolve(path.dirname(loaderAbsPath), importMatch[1]);
+}
 
 function getContentScriptLoaderPath(): string {
-  const assetsDir = path.join(EXTENSION_PATH, "assets");
-  const files = fs.readdirSync(assetsDir);
-  const loaderFile = files.find(
-    (f) => f.includes("content-script") && f.includes("loader")
+  const manifest = readManifest();
+  const serviceWorkerModulePath = getServiceWorkerModulePath(manifest);
+  const serviceWorkerSource = fs.readFileSync(serviceWorkerModulePath, "utf-8");
+
+  const loaderMatch = serviceWorkerSource.match(
+    /["'](\/assets\/[^"']*content-script[^"']*loader[^"']*\.js)["']/
   );
-  return loaderFile ? `assets/${loaderFile}` : "";
+  if (!loaderMatch?.[1]) {
+    throw new Error("Content script loader not found in service worker bundle");
+  }
+
+  const loaderPath = loaderMatch[1].replace(/^\//, "");
+  const loaderAbsPath = resolveDistPath(loaderPath);
+  if (!fs.existsSync(loaderAbsPath)) {
+    throw new Error(`Content script loader not found: ${loaderPath}`);
+  }
+
+  return loaderPath;
 }
 
 interface ExtensionFixtures {
@@ -61,16 +107,29 @@ export const test = base.extend<ExtensionFixtures>({
   openCommandPalette: async ({ serviceWorker }, use) => {
     // Get loader path at fixture setup time
     const loaderPath = getContentScriptLoaderPath();
-    if (!loaderPath) {
-      throw new Error("Content script loader not found in dist/assets");
-    }
 
     const openPalette = async (page: Page) => {
+      await page.bringToFront();
       // Get tab ID by querying tabs and matching URL
       const pageUrl = page.url();
       const tabId = await serviceWorker.evaluate(async (url: string) => {
-        const tabs = await chrome.tabs.query({ url });
-        return tabs[0]?.id ?? null;
+        const activeTabs = await chrome.tabs.query({
+          active: true,
+          currentWindow: true,
+        });
+        if (activeTabs[0]?.id) {
+          return activeTabs[0].id;
+        }
+
+        if (url) {
+          const urlTabs = await chrome.tabs.query({ url });
+          if (urlTabs[0]?.id) {
+            return urlTabs[0].id;
+          }
+        }
+
+        const allTabs = await chrome.tabs.query({});
+        return allTabs[0]?.id ?? null;
       }, pageUrl);
 
       if (!tabId) {
