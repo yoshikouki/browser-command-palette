@@ -12,6 +12,10 @@ import {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const EXTENSION_PATH = path.resolve(__dirname, "../../dist");
 const MANIFEST_PATH = path.join(EXTENSION_PATH, "manifest.json");
+const LEADING_SLASH_REGEX = /^\//;
+const SERVICE_WORKER_IMPORT_REGEX = /import\s+["'](.+?)["']/;
+const CONTENT_SCRIPT_LOADER_REGEX =
+  /["'](\/assets\/[^"']*content-script[^"']*loader[^"']*\.js)["']/;
 
 interface ExtensionManifest {
   background?: {
@@ -25,7 +29,10 @@ function readManifest(): ExtensionManifest {
 }
 
 function resolveDistPath(relativePath: string): string {
-  return path.resolve(EXTENSION_PATH, relativePath.replace(/^\//, ""));
+  return path.resolve(
+    EXTENSION_PATH,
+    relativePath.replace(LEADING_SLASH_REGEX, "")
+  );
 }
 
 function getServiceWorkerModulePath(manifest: ExtensionManifest): string {
@@ -36,7 +43,7 @@ function getServiceWorkerModulePath(manifest: ExtensionManifest): string {
 
   const loaderAbsPath = resolveDistPath(loaderPath);
   const loaderSource = fs.readFileSync(loaderAbsPath, "utf-8");
-  const importMatch = loaderSource.match(/import\s+["'](.+?)["']/);
+  const importMatch = loaderSource.match(SERVICE_WORKER_IMPORT_REGEX);
   if (!importMatch?.[1]) {
     throw new Error(
       `Service worker module not found in ${path.basename(loaderPath)}`
@@ -51,14 +58,12 @@ function getContentScriptLoaderPath(): string {
   const serviceWorkerModulePath = getServiceWorkerModulePath(manifest);
   const serviceWorkerSource = fs.readFileSync(serviceWorkerModulePath, "utf-8");
 
-  const loaderMatch = serviceWorkerSource.match(
-    /["'](\/assets\/[^"']*content-script[^"']*loader[^"']*\.js)["']/
-  );
+  const loaderMatch = serviceWorkerSource.match(CONTENT_SCRIPT_LOADER_REGEX);
   if (!loaderMatch?.[1]) {
     throw new Error("Content script loader not found in service worker bundle");
   }
 
-  const loaderPath = loaderMatch[1].replace(/^\//, "");
+  const loaderPath = loaderMatch[1].replace(LEADING_SLASH_REGEX, "");
   const loaderAbsPath = resolveDistPath(loaderPath);
   if (!fs.existsSync(loaderAbsPath)) {
     throw new Error(`Content script loader not found: ${loaderPath}`);
